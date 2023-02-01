@@ -16,9 +16,6 @@ struct Student {
         if (random) {
             id = 1000 + rand() % 9000;
             gpa = 2.0f + 3.0f * (static_cast <float> (rand()) / static_cast <float> (RAND_MAX));
-            memset(firstName,0,NAMESIZE);
-            memset(lastName,0,NAMESIZE);
-
             strcpy(firstName,randomFirstName());
             strcpy(lastName,randomLastName());
         }
@@ -31,33 +28,71 @@ struct Student {
     }
 
     Student(int id, const char* fn, const char* ln, float gpa) : id(id), gpa(gpa) {
-        memset(firstName,0,NAMESIZE);
         strcpy(firstName, fn);
-        
-        memset(lastName,0,NAMESIZE);
         strcpy(lastName, ln);
     }
-    ~Student() {
-        printf("Student destructed!\n");
-    }
+    ~Student() { }
 };
 
+// Only hash characters before null-termination inside the Student member.
+template <>
+HashTable<Student>::hash_t HashTable<Student>::hashfunc(Student *t) {
+    unsigned char * const str = (unsigned char*)t;
+    hash_t hash = 5381;
+    for (size_t i=offsetof(Student,id);i < offsetof(Student,id) + sizeof(int); i++) {
+        hash = ((hash << 5) + hash) + str[i]; /* hash * 33 + c */
+    }
+    const size_t fn = offsetof(Student,firstName), ln = offsetof(Student,lastName);
+    unsigned char *name = str + fn;
+    while (*name) hash = ((hash << 5) + hash) + *name++;
+    name = str + ln;
+    while (*name) hash = ((hash << 5) + hash) + *name++;
 
-template class HashTable<Student>;
+    for (size_t i=offsetof(Student,gpa);i < offsetof(Student,gpa) + sizeof(float); i++) {
+        hash = ((hash << 5) + hash) + str[i]; /* hash * 33 + c */
+    }
+
+    return hash;
+}
+
+void printStuHeader() {
+    printf("%4s %*s %*s %4s --- ",
+        "ID",
+        Student::NAMESIZE, "FIRST",
+        Student::NAMESIZE, "LAST",
+        "GPA");
+}
 
 void inlinePrintStu(const Student& stu) {
-    printf("%i %*s %*s %.2f /-/ ",
+    printf("%4i %*s %*s %4.2f --- ",
         stu.id,
         Student::NAMESIZE, stu.firstName,
         Student::NAMESIZE, stu.lastName,
         stu.gpa);
 }
+
+template <class T>
+int numDigits(T number)
+{
+    int digits = 0;
+    if (number < 0) digits = 1; // remove this line if '-' counts as a digit
+    while (number) {
+        number /= 10;
+        digits++;
+    }
+    return digits;
+}
+
 void printBins(const HashTable<Student> &ht) {
-    printf("Printing bins:\n");
+    const size_t len = numDigits(ht.bins());
+    printf("PRINTING HASHTABLE BINS:\n");
+    printf("    %*c  ", len, ' ');
+    for (int i=0;i<3;i++) printStuHeader();
+    printf("\n");
     for (size_t i=0;i<ht.bins();i++) {
         const Node<Student>* head = ht.bin(i);
         if (!head) continue;
-        printf("    %u: ", i);
+        printf("    %*u: ", len, i);
         while (head) {
             inlinePrintStu(*head->data);
             head = head->next;
@@ -71,10 +106,17 @@ int main() {
 
     HashTable<Student> ht = {};
 
-    for (int i=0;i<25;i++) {
+    for (int i=0;i<35;i++) {
         ht.add(new Student(true));
     }
 
     printBins(ht);
+
+    printf("Size: %lu\n", ht.size());
+
+    printf("Clearing...\n");
+    ht.clear();
+
+    printf("Size: %lu\n", ht.size());
 
 }
