@@ -2,6 +2,7 @@
 #include <cstring>
 
 #include "hashtable.h"
+#include "names.h"
 
 struct Student {
     static const size_t NAMESIZE = 16;
@@ -10,6 +11,24 @@ struct Student {
     // Must be null filled not just terminated, or else non-visual diffs will be present.
     char firstName[NAMESIZE], lastName[NAMESIZE];
     float gpa;
+
+    Student(bool random) {
+        if (random) {
+            id = 1000 + rand() % 9000;
+            gpa = 2.0f + 3.0f * (static_cast <float> (rand()) / static_cast <float> (RAND_MAX));
+            memset(firstName,0,NAMESIZE);
+            memset(lastName,0,NAMESIZE);
+
+            strcpy(firstName,randomFirstName());
+            strcpy(lastName,randomLastName());
+        }
+        else {
+            id = 0;
+            *firstName = '\0';
+            *lastName = '\0';
+            gpa = 0.0f;
+        }
+    }
 
     Student(int id, const char* fn, const char* ln, float gpa) : id(id), gpa(gpa) {
         memset(firstName,0,NAMESIZE);
@@ -23,10 +42,15 @@ struct Student {
     }
 };
 
+
 template class HashTable<Student>;
 
 void inlinePrintStu(const Student& stu) {
-    printf("%i/%s/%s/%.2f ",stu.id,stu.firstName,stu.lastName,stu.gpa);
+    printf("%i %*s %*s %.2f /-/ ",
+        stu.id,
+        Student::NAMESIZE, stu.firstName,
+        Student::NAMESIZE, stu.lastName,
+        stu.gpa);
 }
 void printBins(const HashTable<Student> &ht) {
     printf("Printing bins:\n");
@@ -43,21 +67,13 @@ void printBins(const HashTable<Student> &ht) {
 }
 
 int main() {
+    srand(time(NULL));
+
     HashTable<Student> ht = {};
 
-    ht.add(new Student(395, "Jeff", "McM", 4.13f));
-    ht.add(new Student(395, "Jeff", "McM", 4.13f));
-
-    ht.add(new Student(123, "Steve", "McM", 3.26f));
-    ht.add(new Student(6969, "Cole", "Mass", 5.63f));
-    ht.add(new Student(333, "Reese", "G", 4.13f));
-    ht.add(new Student(444, "Cole", "Thomas", 4.25f));
-    ht.add(new Student(399, "Hancock", "Alan", 3.63f));
-    ht.add(new Student(423, "James", "Roth", 6.43f));
-    ht.add(new Student(6645, "Caden", "Emms", 99.42f));
-    ht.add(new Student(12313, "Eric", "Eric", 31.42f));
-    ht.add(new Student(1222, "Sponge", "Gary", 23.42f));
-    ht.add(new Student(9912, "Partick", "Rats", 64.42f));
+    for (int i=0;i<25;i++) {
+        ht.add(new Student(true));
+    }
 
     printBins(ht);
 
