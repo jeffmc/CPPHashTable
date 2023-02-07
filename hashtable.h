@@ -13,9 +13,10 @@ struct Node {
 };
 
 template <typename T>
-class HashTable {
+class HashTable { // Each entry must be unique
 	using hash_t = unsigned long int;
 
+	size_t entryCt; // Size of the hash table ( Number of (unique) entries! )
 	size_t binCount;
 	struct BinElement {
 		bool constructed;
@@ -42,12 +43,28 @@ class HashTable {
 		return hash;
 	}
 
-public:
-	HashTable(size_t binct = 50) : binCount(binct) {
-		const size_t sz = sizeof(BinElement) * binCount;
-		memory = (BinElement*) ::operator new(sz);
-		for (size_t i = 0; i < binCount; i++) memory[i].constructed = false;
+	BinElement* allocmem(size_t newBinCt) {
+		BinElement* mem = (BinElement*) ::operator new(sizeof(BinElement) * newBinCt);
+		for (size_t i = 0; i < newBinCt; i++) mem[i].constructed = false;
+		return mem;
 	}
+
+	void grow() {
+		const size_t oldBinCt = binCount;
+		BinElement* oldmem = memory;
+		
+		binCount *= 1.5; // growth factor
+		if (binCount < 2) binCount = 2;
+		memory = allocmem(binCount);
+		
+	}
+
+public:
+	HashTable(size_t binct = 50) : binCount(binct), memory(allocmem(binCount)) {
+		// memory = allocmem(binCount);
+	}
+
+	// Return true if data (equal hash) is present in hash table.
 	bool has(T* t) {
 		const hash_t thash = hashfunc(t);
 		const size_t tbin = thash % binCount;
@@ -61,7 +78,7 @@ public:
 		return false;
 	}
 
-	// Return whether or not the pointer was added, it will not add if an equal hash is already present.
+	// Return true if the data was added, false if if a data (equal hash) is already present.
 	bool add(T* t) {
 		hash_t thash = hashfunc(t); 
 		size_t tbin = thash % binCount;
@@ -74,10 +91,12 @@ public:
 			}
 			if (hashfunc(head->data) == thash) return false;
 			head->next = new Node<T>(t);
+			++entryCt;
 			return true;
 		}
 		else {
 			be.construct(t);
+			++entryCt;
 			return true;
 		}
 	}
@@ -98,6 +117,7 @@ public:
 				}
 			}
 		}
+		entryCt = 0;
 	}
 	size_t size() const {
 		size_t sz = 0;
@@ -115,6 +135,7 @@ public:
 		return sz;
 	}
 
+	size_t entries() const { return entryCt; }
 	// Bins
 	size_t bins() const { return binCount; }
 	Node<T>* bin(size_t i) {

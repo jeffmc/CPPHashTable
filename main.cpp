@@ -85,7 +85,7 @@ int numDigits(T number)
 
 void printBins(const HashTable<Student> &ht) {
     const size_t len = numDigits(ht.bins());
-    printf("PRINTING HASHTABLE BINS:\n");
+    printf("Hashtable: %i bins, %i entries\n", ht.bins(), ht.entries());
     printf("    %*c  ", len, ' ');
     for (int i=0;i<3;i++) printStuHeader();
     printf("\n");
@@ -99,25 +99,24 @@ void printBins(const HashTable<Student> &ht) {
         }
         printf("\n");
     }
+    printf("---END OF BINS---\n");
 }
 
-int main() {
+int main(int argc, char* argv[]) {
+    const int genCt = argc > 1 ? atoi(argv[1]) : 100;
+
     srand(time(NULL));
+    HashTable<Student> ht{};
 
-    HashTable<Student> ht = {};
-
-    ht.add(new Student());
-    ht.add(new Student());
-    for (int i=0;i<35;i++) {
+    for (int i=0;i<genCt;i++) {
         ht.add(new Student(true));
     }
 
     printBins(ht);
-    printf("Size: %lu\n", ht.size());
-
+    
     printf("Clearing...\n");
     ht.clear();
 
-    printf("Size: %lu\n", ht.size());
+    printBins(ht);
 
 }
