@@ -48,17 +48,37 @@ public:
 		memory = (BinElement*) ::operator new(sz);
 		for (size_t i = 0; i < binCount; i++) memory[i].constructed = false;
 	}
-	void add(T* t) {
-		hash_t hash = hashfunc(t); 
-		size_t bin = hash % binCount;
-		BinElement& be = memory[bin];
+	bool has(T* t) {
+		const hash_t thash = hashfunc(t);
+		const size_t tbin = thash % binCount;
+		const BinElement& bin = memory[tbin];
+		if (!bin) return false;
+		const Node<T>* head = &bin.node;
+		while (head) {
+			if (thash == hashfunc(head->data)) return true;
+			head = head.next;
+		}
+		return false;
+	}
+
+	// Return whether or not the pointer was added, it will not add if an equal hash is already present.
+	bool add(T* t) {
+		hash_t thash = hashfunc(t); 
+		size_t tbin = thash % binCount;
+		BinElement& be = memory[tbin];
 		if (be) {
 			Node<T>* head = &be.node;
-			while (head->next) head = head->next;
+			while (head->next) {
+				if (hashfunc(head->data) == thash) return false;
+				head = head->next;
+			}
+			if (hashfunc(head->data) == thash) return false;
 			head->next = new Node<T>(t);
+			return true;
 		}
 		else {
 			be.construct(t);
+			return true;
 		}
 	}
 	void clear() {

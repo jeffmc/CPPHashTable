@@ -12,7 +12,7 @@ struct Student {
     char firstName[NAMESIZE], lastName[NAMESIZE];
     float gpa;
 
-    Student(bool random) {
+    Student(bool random = false) {
         if (random) {
             id = 1000 + rand() % 9000;
             gpa = 2.0f + 3.0f * (static_cast <float> (rand()) / static_cast <float> (RAND_MAX));
@@ -106,12 +106,13 @@ int main() {
 
     HashTable<Student> ht = {};
 
+    ht.add(new Student());
+    ht.add(new Student());
     for (int i=0;i<35;i++) {
         ht.add(new Student(true));
     }
 
     printBins(ht);
-
     printf("Size: %lu\n", ht.size());
 
     printf("Clearing...\n");
