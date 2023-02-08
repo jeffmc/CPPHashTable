@@ -102,16 +102,29 @@ void printBins(const HashTable<Student> &ht) {
     printf("---END OF BINS---\n");
 }
 
+void printStats(const HashTable<Student> &ht) {
+    printf("%i bins, %i entries (%i bytes)\n", ht.bins(), ht.entries(), ht.bytesize());
+}
+
+void add(HashTable<Student> &ht, size_t ct) {
+    for (size_t i=0;i<ct;i++) {
+        ht.add(new Student(true));
+    }
+}
+
 int main(int argc, char* argv[]) {
     const int genCt = argc > 1 ? atoi(argv[1]) : 100;
 
     srand(time(NULL));
     HashTable<Student> ht{};
 
-    for (int i=0;i<genCt;i++) {
-        ht.add(new Student(true));
+    for (size_t i=0;i<10;i++) {
+        add(ht,10);
+        printStats(ht);
     }
 
+
+    printf("Finished!\n");
     printBins(ht);
     
     printf("Clearing...\n");

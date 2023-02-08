@@ -16,6 +16,8 @@ template <typename T>
 class HashTable { // Each entry must be unique
 	using hash_t = unsigned long int;
 
+	static const constexpr float OPTIMAL_LOAD_FACTOR = 0.6f;
+
 	size_t entryCt; // Size of the hash table ( Number of (unique) entries! )
 	size_t binCount;
 	struct BinElement {
@@ -49,26 +51,62 @@ class HashTable { // Each entry must be unique
 		return mem;
 	}
 
-	void grow() {
+	// Return true if the data was added, false if if a data (equal hash) is already present.
+	bool intl_add(T* t) {
+		hash_t thash = hashfunc(t); 
+		BinElement& be = memory[thash % binCount];
+		if (be) {
+			Node<T>* prev = nullptr;
+			Node<T>* head = &be.node;
+			while (head) {
+				if (hashfunc(head->data) == thash) return false;
+				prev = head;
+				head = head->next;
+			}
+			prev->next = new Node<T>(t);
+			++entryCt;
+			return true;
+		}
+		else {
+			be.construct(t);
+			++entryCt;
+			return true;
+		}
+	}
+
+	void grow(float factor = 2.3) {
 		const size_t oldBinCt = binCount;
 		BinElement* oldmem = memory;
 		
-		binCount *= 1.5; // growth factor
+		binCount *= factor; // growth factor
 		if (binCount < 2) binCount = 2;
 		memory = allocmem(binCount);
 		
+		for (size_t i=0;i<oldBinCt;++i) {
+			BinElement &old = oldmem[i];
+			if (old) {
+				intl_add(old.node.data);
+				old.node.data = nullptr;
+				Node<T>* head = old.node.next;
+				old.destruct();
+				while (head) {
+					intl_add(head->data);
+					head->data = nullptr;
+					head = head->next;
+				}
+			}
+		}
+		delete oldmem;
+		return;
 	}
 
 public:
-	HashTable(size_t binct = 50) : binCount(binct), memory(allocmem(binCount)) {
-		// memory = allocmem(binCount);
-	}
+	HashTable(size_t binct = 100) : binCount(binct), memory(allocmem(binCount)) { }
 
 	// Return true if data (equal hash) is present in hash table.
 	bool has(T* t) {
 		const hash_t thash = hashfunc(t);
-		const size_t tbin = thash % binCount;
-		const BinElement& bin = memory[tbin];
+		const BinElement& bin = memory[thash % binCount];
 		if (!bin) return false;
 		const Node<T>* head = &bin.node;
 		while (head) {
@@ -78,27 +116,11 @@ public:
 		return false;
 	}
 
-	// Return true if the data was added, false if if a data (equal hash) is already present.
+	// Return true if the data was added, false if if a data (equal hash) is already present, grow if load factor too high.
 	bool add(T* t) {
-		hash_t thash = hashfunc(t); 
-		size_t tbin = thash % binCount;
-		BinElement& be = memory[tbin];
-		if (be) {
-			Node<T>* head = &be.node;
-			while (head->next) {
-				if (hashfunc(head->data) == thash) return false;
-				head = head->next;
-			}
-			if (hashfunc(head->data) == thash) return false;
-			head->next = new Node<T>(t);
-			++entryCt;
-			return true;
-		}
-		else {
-			be.construct(t);
-			++entryCt;
-			return true;
-		}
+		bool added = intl_add(t);
+		while ((float)entryCt / (float)binCount > OPTIMAL_LOAD_FACTOR) grow(); // TODO: Check for linked-entries of length>3.
+		return added;
 	}
 	void clear() {
 		for (size_t i=0;i<binCount;i++) {
@@ -133,6 +155,9 @@ public:
 			}
 		}
 		return sz;
+	}
+	size_t bytesize() const {
+		return binCount * sizeof(BinElement);
 	}
 
 	size_t entries() const { return entryCt; }
