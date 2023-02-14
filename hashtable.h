@@ -1,6 +1,8 @@
 #include <cstddef>
 #include <cstring>
 
+#define LOG_COLLISIONS 0
+
 template <typename T>
 struct Node {
 	T* data; // shouldn't be nullptr.
@@ -16,10 +18,8 @@ template <typename T>
 class HashTable { // Each entry must be unique
 	using hash_t = unsigned long int;
 
-	static const constexpr float OPTIMAL_LOAD_FACTOR = 0.6f;
-
-	size_t entryCt; // Size of the hash table ( Number of (unique) entries! )
-	size_t binCount;
+	size_t entryCt = 0; // Size of the hash table ( Number of (unique) entries! )
+	size_t binCount = 0;
 	struct BinElement {
 		bool constructed;
 		Node<T> node;
@@ -36,22 +36,13 @@ class HashTable { // Each entry must be unique
 	};
 	BinElement* memory;
 
-	hash_t hashfunc(T *t) {
-		unsigned char *str = (unsigned char*)t;
-		hash_t hash = 5381;
-		for (size_t i=0;i < sizeof(T); i++) {
-			hash = ((hash << 5) + hash) + str[i]; /* hash * 33 + c */
-		}
-		return hash;
-	}
-
 	BinElement* allocmem(size_t newBinCt) {
 		BinElement* mem = (BinElement*) ::operator new(sizeof(BinElement) * newBinCt);
 		for (size_t i = 0; i < newBinCt; i++) mem[i].constructed = false;
 		return mem;
 	}
 
-	// Return true if the data was added, false if if a data (equal hash) is already present.
+	// DOESN'T INCREMENT ENTRY COUNTER Return true if the data was added, false if if a data (equal hash) is already present
 	bool intl_add(T* t) {
 		hash_t thash = hashfunc(t); 
 		BinElement& be = memory[thash % binCount];
@@ -59,17 +50,24 @@ class HashTable { // Each entry must be unique
 			Node<T>* prev = nullptr;
 			Node<T>* head = &be.node;
 			while (head) {
-				if (hashfunc(head->data) == thash) return false;
+				if (hashfunc(head->data) == thash) {
+					#if LOG_COLLISIONS
+					printf("COLLISION FOUND HERE[%lu]:\n", thash);
+					printf("	 EXIST:");
+					logelement(head->data);
+					printf("	FAILED:");
+					logelement(t);
+					#endif
+					return false;
+				}
 				prev = head;
 				head = head->next;
 			}
 			prev->next = new Node<T>(t);
-			++entryCt;
 			return true;
 		}
 		else {
 			be.construct(t);
-			++entryCt;
 			return true;
 		}
 	}
@@ -101,6 +99,17 @@ class HashTable { // Each entry must be unique
 	}
 
 public:
+	static void logelement(const T *t) {
+		printf("[%p] Hashtable Element\n");
+	}
+	static hash_t hashfunc(T *t) {
+		unsigned char *str = (unsigned char*)t;
+		hash_t hash = 5381;
+		for (size_t i=0;i < sizeof(T); i++) {
+			hash = ((hash << 5) + hash) + str[i]; /* hash * 33 + c */
+		}
+		return hash;
+	}
 	HashTable(size_t binct = 100) : binCount(binct), memory(allocmem(binCount)) { }
 
 	// Return true if data (equal hash) is present in hash table.
@@ -119,8 +128,16 @@ public:
 	// Return true if the data was added, false if if a data (equal hash) is already present, grow if load factor too high.
 	bool add(T* t) {
 		bool added = intl_add(t);
-		while ((float)entryCt / (float)binCount > OPTIMAL_LOAD_FACTOR) grow(); // TODO: Check for linked-entries of length>3.
+		if (added) ++entryCt;
+		while (entryCt > ((float)binCount * 0.5)) {  // TODO: Check for linked-entries of length>3
+			grow();
+		}
 		return added;
+	}
+
+	// Return true if an element with equal hash was removed!
+	bool remove(T* t) {
+		return false;
 	}
 	void clear() {
 		for (size_t i=0;i<binCount;i++) {
@@ -141,7 +158,13 @@ public:
 		}
 		entryCt = 0;
 	}
-	size_t size() const {
+	// Return number of elements stored in hash table.
+	size_t size() const 
+	{
+		return entryCt;
+	}
+	size_t calcsize() const 
+	{
 		size_t sz = 0;
 		for (size_t i=0;i<binCount;i++) {
 			const BinElement& be = memory[i];
@@ -156,7 +179,8 @@ public:
 		}
 		return sz;
 	}
-	size_t bytesize() const {
+	// Return bytes occupied
+	size_t memsize() const {
 		return binCount * sizeof(BinElement);
 	}
 

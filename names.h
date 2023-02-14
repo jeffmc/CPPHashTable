@@ -1,7 +1,7 @@
 #pragma once
 #include <cstdlib>
 
-static const char* firsts[1000] = {
+static const char* const firsts[1000] = {
   "Stanford",
   "Melvyn",
   "Felicdad",
@@ -1004,7 +1004,7 @@ static const char* firsts[1000] = {
   "Corrine",
 };
 
-const char* lasts[1000] = {
+static const char* const lasts[1000] = {
   "Ferras",
   "Noice",
   "Mardoll",
@@ -2007,9 +2007,12 @@ const char* lasts[1000] = {
   "Natalie",
 };
 
+static const constexpr size_t firstNameCt = sizeof(firsts) / sizeof(firsts[0]);  
+static const constexpr size_t lastNameCt = sizeof(lasts) / sizeof(lasts[0]);  
+
 const char* randomFirstName() {
-  return firsts[rand() % 1000];
+  return firsts[rand() % firstNameCt];
 }
 const char* randomLastName() {
-  return lasts[rand() % 1000];
+  return lasts[rand() % lastNameCt];
 }
