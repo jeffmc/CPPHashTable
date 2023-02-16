@@ -1,3 +1,5 @@
+// This file contains all data structures used for this project.
+
 #include <cstddef>
 #include <cstring>
 
@@ -42,14 +44,16 @@ class HashTable { // Each entry must be unique
 		return mem;
 	}
 
-	// DOESN'T INCREMENT ENTRY COUNTER Return true if the data was added, false if if a data (equal hash) is already present
-	bool intl_add(T* t) {
+	// DOESN'T INCREMENT ENTRY COUNTER Return true if the length of chain if added, -1 if if a data (equal hash) is already present.
+	int intl_add(T* t) {
 		hash_t thash = hashfunc(t); 
 		BinElement& be = memory[thash % binCount];
 		if (be) {
+			int length = 0;
 			Node<T>* prev = nullptr;
 			Node<T>* head = &be.node;
 			while (head) {
+				++length;
 				if (hashfunc(head->data) == thash) {
 					#if LOG_COLLISIONS
 					printf("COLLISION FOUND HERE[%lu]:\n", thash);
@@ -58,17 +62,17 @@ class HashTable { // Each entry must be unique
 					printf("	FAILED:");
 					logelement(t);
 					#endif
-					return false;
+					return -1;
 				}
 				prev = head;
 				head = head->next;
 			}
 			prev->next = new Node<T>(t);
-			return true;
+			return length;
 		}
 		else {
 			be.construct(t);
-			return true;
+			return 1;
 		}
 	}
 
@@ -127,17 +131,53 @@ public:
 
 	// Return true if the data was added, false if if a data (equal hash) is already present, grow if load factor too high.
 	bool add(T* t) {
-		bool added = intl_add(t);
-		if (added) ++entryCt;
+		int added = intl_add(t);
+		if (added >= 0) ++entryCt;
+		if (added > 3) grow();
 		while (entryCt > ((float)binCount * 0.5)) {  // TODO: Check for linked-entries of length>3
 			grow();
 		}
-		return added;
+		return added >= 0;
 	}
 
 	// Return true if an element with equal hash was removed!
 	bool remove(T* t) {
-		return false;
+		const hash_t thash = hashfunc(t);
+		const size_t binid = thash % binCount;
+		BinElement& be = memory[binid];
+		Node<T>& head = be.node;
+		if (be) {
+			if (hashfunc(head.data) == thash) {
+				if (head.next) {
+					head.data = head.next->data;
+					Node<T>* old = head.next;
+					head.next = old->next;
+					delete old;
+				}
+				else {
+					be.destruct();
+				}
+				return true;
+			}
+			else {
+				Node<T>** prev = &head.next;
+				Node<T>* curr = head.next;
+				while (curr) {
+					if (hashfunc(curr->data) == thash) {
+						*prev = curr->next;
+						delete curr;
+						return true;
+					}
+					else {
+						prev = &curr->next;
+						curr = curr->next;
+					}
+				}
+				return false;
+			}
+		} else {
+			return false;
+		}
 	}
 	void clear() {
 		for (size_t i=0;i<binCount;i++) {
@@ -156,7 +196,10 @@ public:
 				}
 			}
 		}
+		delete memory;
 		entryCt = 0;
+		binCount = 100; // Default 100 bins.
+		memory = allocmem(binCount);
 	}
 	// Return number of elements stored in hash table.
 	size_t size() const 

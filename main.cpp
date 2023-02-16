@@ -1,3 +1,7 @@
+// Jeff McMillan 2-16-2023 C++ Hash Table Project
+// This project contains a list of students within a hash table. The user is able to add,
+// remove, and print out the list of students.
+
 #include <iostream>
 #include <cstring>
 
@@ -15,7 +19,7 @@ struct Student {
     Student(bool random = false) 
     {
         if (random) {
-            id = 1000 + rand() % 9000;
+            id = 100000 + rand() % 900000;
             gpa = 2.0f + 3.0f * (static_cast <float> (rand()) / static_cast <float> (RAND_MAX));
             strcpy(firstName,randomFirstName());
             strcpy(lastName,randomLastName());
@@ -36,8 +40,7 @@ struct Student {
     ~Student() { }
 };
 
-// REAL: ONLY HASH THE STUDENT ID, AS THAT IS THE ONLY UNIQUE IDENTIFIER IN THESE STUDENTS! 
-// FAKE: Only hash characters before null-termination inside the Student member.
+// ONLY HASH THE STUDENT ID, AS THAT IS THE ONLY UNIQUE IDENTIFIER IN THIS SET OF STUDENTS! 
 template <>
 HashTable<Student>::hash_t HashTable<Student>::hashfunc(Student *t) 
 {
@@ -61,7 +64,7 @@ HashTable<Student>::hash_t HashTable<Student>::hashfunc(Student *t)
 
 void inlinePrintStu(const Student& stu) 
 {
-    printf("%4i %*s %*s %4.2f --- ",
+    printf("%6i %*s %*s %4.2f --- ",
         stu.id,
         Student::NAMESIZE, stu.firstName,
         Student::NAMESIZE, stu.lastName,
@@ -77,7 +80,7 @@ void HashTable<Student>::logelement(const Student *t)
 
 void printStuHeader() 
 {
-    printf("%4s %*s %*s %4s --- ",
+    printf("%6s %*s %*s %4s --- ",
         "ID",
         Student::NAMESIZE, "FIRST",
         Student::NAMESIZE, "LAST",
@@ -122,14 +125,16 @@ void printElements(const HashTable<Student> &ht)
     const size_t len = numDigits(ht.bins());
     printf("Hashtable: %i bins, %i entries\n", ht.bins(), ht.entries());
     size_t stuCt = 0;
-    printf("    ");
+    size_t binlen = numDigits(ht.bins());
+    if (binlen < 3) binlen = 3;
+    printf("  %*s  ", binlen, "BIN");
     printStuHeader();
     printf("\n");
     for (size_t i=0;i<ht.bins();i++) {
         const Node<Student>* head = ht.bin(i);
         while (head) {
             ++stuCt;
-            printf("    ");
+            printf("  %*u  ", binlen, i);
             inlinePrintStu(*head->data);
             printf("\n");
             head = head->next;
@@ -157,42 +162,129 @@ size_t addRandoms(HashTable<Student> &ht, const size_t ct)
     return collisions;
 }
 
-int main(int argc, char* argv[]) 
+///// COMMANDS ////////
+
+// Read in a line from the console.
+void consolein(char* cstr, std::streamsize n) {
+	std::cin.getline(cstr, n);
+	if (std::cin.fail()) {
+		std::cin.clear();
+		std::cin.ignore();
+	}
+	#ifdef CONSOLEINDBG
+	printf("\"%s\"\n",cstr);
+	#endif
+}
+
+
+void randomStudents(HashTable<Student> &ht) {
+    printf("How many to random students should be added: ");
+	char conversions[32];
+	consolein(conversions,32);
+	const size_t randCt = strtol(conversions,nullptr,10);
+
+    printf("Adding %u students...\n", randCt);
+    const size_t collisions  = addRandoms(ht,randCt);
+    printf("%u duplicate collisions!\n", collisions);
+}
+
+
+// Create a student using fields provided by user through the console.
+Student* constructStudent() {
+	Student* newstu = new Student();
+	
+	char conversions[32];
+
+	printf("Student ID: ");
+	consolein(conversions,32);
+	newstu->id = strtol(conversions,nullptr,10);
+
+	printf("First name: ");
+	consolein(newstu->firstName, Student::NAMESIZE);
+	
+	printf("Last name: ");
+	consolein(newstu->lastName, Student::NAMESIZE);
+
+	printf("GPA: ");
+	consolein(conversions,32);
+	newstu->gpa = strtof(conversions,nullptr);
+
+	return newstu;
+}
+
+// Print a single student!
+void printStudent(const Student &stu) {
+	printf("%7i %*s %*s %.2f\n", stu.id, 
+	Student::NAMESIZE, stu.firstName, 
+	Student::NAMESIZE,  stu.lastName, 
+	stu.gpa);
+}
+
+int main() 
 {
-    const int genCt = argc > 1 ? atoi(argv[1]) : 100;
+    srand(time(NULL)); // Init random seed using current system time
+    HashTable<Student> ht{}; // Init empty hash table.
+    bool running = true;
+	char cmd[16];
+	const char* helpstr = "Command list: ADD PRINT TBLPRINT STATS RAND DELETE CLEAR QUIT HELP";
+	printf("%s\n", helpstr);
+	// Command loop!
+	while (running) {
+		printf(":");
+		consolein(cmd, 16);
+		
+		if (strcmp(cmd,"ADD") == 0) {
+			Student* newstu = constructStudent();
+			
+			printf("Created Student:\n");
+			printStudent(*newstu);
+			bool added = ht.add(newstu);
+            if (!added) printf("Not added! Student with ID already exists in table!");
+		}
+		else if (strcmp(cmd,"PRINT") == 0) {
+			printElements(ht);
+		}
+		else if (strcmp(cmd,"TBLPRINT") == 0) {
+			printBins(ht);
+		}
+		else if (strcmp(cmd,"STATS") == 0) {
+			printStats(ht);
+		}
+        else if (strcmp(cmd,"RAND") == 0) {
+            randomStudents(ht);
+        }
+		else if (strcmp(cmd,"DELETE") == 0) {
+			char conversions[16];
+			printf("ID TO DELETE: ");
+			consolein(conversions,16);
+			int id = strtol(conversions,nullptr,10);
+			Student shell = Student(id,"","",0.0f);
+            bool removed = ht.remove(&shell);
+            if (removed) {
+                printf("Student removed!\n");
+            }
+            else {
+                printf("No student found!\n");
+            }
+		}
+        else if (strcmp(cmd,"CLEAR") == 0) {
+            ht.clear();
+            printf("Cleared table of students!\n");
+        }
+		else if (strcmp(cmd,"QUIT") == 0) {
+			running = false;
+		}
+		else if (strcmp(cmd,"HELP") == 0) {
+			printf("%s\n",helpstr);
+		}
+        else {
+            printf("\"%s\" not a known command!", cmd);
+        }
 
-    srand(time(NULL));
-    HashTable<Student> ht{};
-
-    size_t collisions = 0;
-    const size_t rounds = 10, per = 40;
-    printf("Adding %u*%u students...\n",rounds,per);
-    for (size_t i=0;i<rounds;++i) {
-        size_t col = addRandoms(ht,per);
-        collisions += col;
-    }
-    printf("%u collisions!\n", collisions);
-
-    printf("Finished!\n");
-    printBins(ht);
-    printElements(ht);
-    
-    printf("Clearing...\n");
-    ht.clear();
-
-    printBins(ht);
-
-    // int ct = 0;
-    // while (true) {
-    //     ++ct;
-    //     Student s = Student(true);
-    //     if ((ct % 10000) == 0) printf("%i\n", ct);
-    //     if (s.gpa > 5.0f) {
-    //         printf("%i FOUND: ", ct);
-    //         inlinePrintStu(s);
-    //         printf("\n");
-    //         break;
-    //     }
-    // }
+		printf("\n");
+	}
+	
+	printf("Goodbye World!\n");
+	return 0;
 
 }
