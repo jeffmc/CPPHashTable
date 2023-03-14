@@ -7,12 +7,12 @@
 
 template <typename T>
 struct Node {
-	T* data; // shouldn't be nullptr.
+	T* data = nullptr; // shouldn't be nullptr.
 	Node* next; // nullptr means end of list.
 	Node(Node&& o) : data(o.data) { o.data = nullptr; }
 	Node(T* d) : data(d), next(nullptr) { }
 	~Node() {
-		delete data;
+		if (data != nullptr) delete data;
 	}
 };
 
@@ -148,11 +148,14 @@ public:
 		Node<T>& head = be.node;
 		if (be) {
 			if (hashfunc(head.data) == thash) {
-				if (head.next) {
-					head.data = head.next->data;
-					Node<T>* old = head.next;
-					head.next = old->next;
-					delete old;
+				Node<T>* next = head.next;
+				if (next != nullptr) {
+					head.data = next->data;
+					head.next = next->next;
+
+					next->data = nullptr;
+					next->next = nullptr;
+					delete next;
 				}
 				else {
 					be.destruct();
